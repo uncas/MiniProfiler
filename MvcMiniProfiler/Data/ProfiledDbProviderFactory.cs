@@ -77,7 +77,7 @@ namespace MvcMiniProfiler.Data
         /// </summary>
         public override DbConnection CreateConnection()
         {
-            return ProfiledDbConnection.Get(tail.CreateConnection(), profiler);
+            return ProfiledDbConnection.Get(tail.CreateConnection());
         }
         /// <summary>
         /// proxy

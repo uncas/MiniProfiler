@@ -26,6 +26,10 @@ namespace MvcMiniProfiler.Data
             }
         }
 
+        public DbDataReader Inner
+        {
+            get { return _reader; }
+        }
 
         public override int Depth
         {

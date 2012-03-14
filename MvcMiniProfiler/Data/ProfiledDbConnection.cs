@@ -12,7 +12,6 @@ namespace MvcMiniProfiler.Data
     {
 
         private DbConnection _conn;
-        private IDbProfiler _profiler;
 
         private DbProviderFactory _factory;
         private static readonly Func<DbConnection, DbProviderFactory> ripInnerProvider =
@@ -28,18 +27,7 @@ namespace MvcMiniProfiler.Data
         /// <param name="connection">Your provider-specific flavor of connection, e.g. SqlConnection, OracleConnection</param>
         public static DbConnection Get(DbConnection connection)
         {
-            return Get(connection, MiniProfiler.Current);
-        }
-
-        /// <summary>
-        /// Returns a new <see cref="ProfiledDbConnection"/> that wraps <paramref name="connection"/>, 
-        /// providing query execution profiling.
-        /// </summary>
-        /// <param name="connection">Your provider-specific flavor of connection, e.g. SqlConnection, OracleConnection</param>
-        /// <param name="profiler">The currently started <see cref="MiniProfiler"/> or null.</param>
-        public static DbConnection Get(DbConnection connection, IDbProfiler profiler)
-        {
-            return new ProfiledDbConnection(connection, profiler);
+            return new ProfiledDbConnection(connection);
         }
 
         /// <summary>
@@ -47,18 +35,12 @@ namespace MvcMiniProfiler.Data
         /// providing query execution profiling.  If profiler is null, no profiling will occur.
         /// </summary>
         /// <param name="connection">Your provider-specific flavor of connection, e.g. SqlConnection, OracleConnection</param>
-        /// <param name="profiler">The currently started <see cref="MiniProfiler"/> or null.</param>
-        protected ProfiledDbConnection(DbConnection connection, IDbProfiler profiler)
+        protected ProfiledDbConnection(DbConnection connection)
         {
             if (connection == null) throw new ArgumentNullException("connection");
 
             _conn = connection;
             _conn.StateChange += StateChangeHandler;
-
-            if (profiler != null)
-            {
-                _profiler = profiler;
-            }
         }
 
 
@@ -71,9 +53,14 @@ namespace MvcMiniProfiler.Data
                 if (_factory != null) return _factory;
                 DbProviderFactory tail = ripInnerProvider(_conn);
                 _factory = DbProviderFactories.GetFactory("MvcMiniProfiler.Data.ProfiledDbProvider");
-                ((ProfiledDbProviderFactory)_factory).InitProfiledDbProviderFactory(_profiler, tail);
+                ((ProfiledDbProviderFactory)_factory).InitProfiledDbProviderFactory(Profiler, tail);
                 return _factory;
             }
+        }
+
+        protected IDbProfiler Profiler
+        {
+            get { return MiniProfiler.Current; }
         }
 
         internal DbConnection WrappedConnection
@@ -159,7 +146,7 @@ namespace MvcMiniProfiler.Data
 
         protected override DbCommand CreateDbCommand()
         {
-            return new ProfiledDbCommand(_conn.CreateCommand(), this, _profiler);
+            return new ProfiledDbCommand(_conn.CreateCommand(), this, Profiler);
         }
 
         protected override void Dispose(bool disposing)
@@ -171,7 +158,6 @@ namespace MvcMiniProfiler.Data
             }
             _factory = null;
             _conn = null;
-            _profiler = null;
             base.Dispose(disposing);
         }
 
@@ -184,7 +170,7 @@ namespace MvcMiniProfiler.Data
         {
             ICloneable tail = _conn as ICloneable;
             if (tail == null) throw new NotSupportedException("Underlying " + _conn.GetType().Name + " is not cloneable");
-            return new ProfiledDbConnection((DbConnection)tail.Clone(), _profiler);
+            return new ProfiledDbConnection((DbConnection)tail.Clone());
         }
         object ICloneable.Clone() { return Clone(); }
 
